@@ -7,6 +7,7 @@ Lua ReaScript that synchronizes REAPER DAW and OBS Studio recording with a singl
 ## Table of Contents
 
 - [Overview](#overview)
+- [Prior Art & Motivation](#prior-art--motivation)
 - [How It Works](#how-it-works)
 - [Requirements](#requirements)
 - [Installation](#installation)
@@ -31,6 +32,21 @@ ReapOBS synchronizes audio recording in REAPER DAW with video recording in OBS S
 Without ReapOBS, starting and stopping two separate applications manually is error-prone. A slightly delayed start or stop creates an audio/video offset that must be corrected in post-production — or worse, causes you to miss the beginning of a take. ReapOBS eliminates this by coordinating both applications from a single REAPER action.
 
 The integration uses three independent Lua ReaScripts: one to start, one to stop, and one toggle script that is recommended for everyday use. Each script checks the current recording state, starts or stops the relevant application, and optionally drops a project marker in REAPER's timeline for reference during editing.
+
+---
+
+## Prior Art & Motivation
+
+An existing open-source project **[leafac/reaper](https://github.com/leafac/reaper)** (MIT license) already includes REAPER-to-OBS recording sync scripts: Start, Stop, and Toggle recording. It's part of a larger collection of REAPER effects and scripts by Leandro Facchinetti, installable via ReaPack.
+
+However, leafac's OBS scripts have a critical compatibility problem: they use his own Node.js-based obs-cli which only speaks the **obs-websocket v4 protocol**. Since OBS Studio 28 (released 2022), OBS ships with obs-websocket v5 built-in and v4 is no longer supported. This means leafac's scripts **do not work with any modern OBS version**. The [issue has been open since March 2023](https://github.com/leafac/reaper/issues/6) with no fix, and the project hasn't seen significant updates in years.
+
+ReapOBS was created as a lightweight, focused alternative that:
+- Uses **obs-cmd** by grigio (Rust binary, zero dependencies) which supports obs-websocket v5 natively
+- Works with current OBS Studio versions out of the box
+- Is Linux-only (Debian) by design
+- Is a standalone project rather than part of a larger monorepo
+- Has no Node.js or other runtime dependencies
 
 ---
 
@@ -268,6 +284,7 @@ GNU General Public License v2.0 — see [LICENSE](LICENSE) for the full text.
 
 ## Acknowledgments
 
+- [leafac/reaper](https://github.com/leafac/reaper) by Leandro Facchinetti — the original inspiration for REAPER + OBS recording synchronization
 - [REAPER](https://www.reaper.fm/) by Cockos Incorporated
 - [OBS Studio](https://obsproject.com/) by the OBS Project
 - [obs-cmd](https://github.com/grigio/obs-cmd) by grigio — the CLI tool that makes this integration possible
