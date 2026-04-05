@@ -40,11 +40,11 @@ end
 
 -- ------------------------------------------------------------
 -- Helper: run an obs-cmd command, return success + output
--- Alternative: reaper.ExecProcess() can also invoke binaries,
--- but io.popen() is simpler and captures stdout/stderr here.
+-- Uses timeout(1) to prevent REAPER from hanging if obs-cmd
+-- or the OBS WebSocket connection becomes unresponsive.
 -- ------------------------------------------------------------
 local function obs_cmd(command)
-  local full_cmd = OBS_CMD_PATH .. " --websocket " .. OBS_WEBSOCKET_URL .. " " .. command .. " 2>&1"
+  local full_cmd = "timeout 5 '" .. OBS_CMD_PATH .. "' --websocket '" .. OBS_WEBSOCKET_URL .. "' " .. command .. " 2>&1"
   log("Running: " .. full_cmd)
 
   local file = io.popen(full_cmd)
@@ -61,6 +61,11 @@ local function obs_cmd(command)
   log("obs-cmd output: " .. (output or ""))
   log("obs-cmd exit code: " .. tostring(exitcode))
 
+  -- timeout(1) returns exit code 124 when the command times out
+  if exitcode == 124 then
+    log("ERROR: obs-cmd timed out after 5 seconds")
+  end
+
   return success, output or ""
 end
 
@@ -73,18 +78,24 @@ local function is_reaper_recording()
 end
 
 -- ------------------------------------------------------------
--- Helper: verify the obs-cmd binary exists at the configured path
+-- Helper: verify the obs-cmd binary exists and is executable
 -- ------------------------------------------------------------
 local function check_obs_cmd_exists()
   local f = io.open(OBS_CMD_PATH, "r")
   if f then
     f:close()
-    log("obs-cmd found at: " .. OBS_CMD_PATH)
-    return true
   else
     log("ERROR: obs-cmd not found at: " .. OBS_CMD_PATH)
     return false
   end
+  -- Verify execute permission
+  local rc = os.execute("test -x '" .. OBS_CMD_PATH .. "'")
+  if not rc then
+    log("ERROR: obs-cmd is not executable: " .. OBS_CMD_PATH .. " (try: chmod +x " .. OBS_CMD_PATH .. ")")
+    return false
+  end
+  log("obs-cmd found at: " .. OBS_CMD_PATH)
+  return true
 end
 
 -- ------------------------------------------------------------
@@ -100,13 +111,13 @@ end
 -- Main: stop synchronized recording
 -- ------------------------------------------------------------
 local function stop_recording()
-  log("ReapOBS: Stopping synchronized recording...")
-
   -- Guard: nothing to stop if not recording
   if not is_reaper_recording() then
     log("Not currently recording, nothing to stop.")
     return
   end
+
+  log("ReapOBS: Stopping synchronized recording...")
 
   -- Stop REAPER recording first (action 1016 = Transport: Stop)
   reaper.Main_OnCommand(1016, 0)
@@ -116,13 +127,27 @@ local function stop_recording()
     add_marker(STOP_MARKER_PREFIX)
   end
 
-  -- Stop OBS recording – failure here is non-critical since REAPER has already stopped
+  -- Stop OBS recording – alert the user if this fails
   if not check_obs_cmd_exists() then
     log("WARNING: obs-cmd not found – cannot stop OBS recording.")
+    reaper.ShowMessageBox(
+      "REAPER recording was stopped, but obs-cmd was not found.\n" ..
+      "OBS Studio may still be recording.\n\n" ..
+      "Please check OBS Studio manually.",
+      "ReapOBS: OBS Stop Warning",
+      0
+    )
   else
     local obs_ok, obs_out = obs_cmd("recording stop")
     if not obs_ok then
       log("WARNING: Failed to stop OBS recording. Output: " .. obs_out)
+      reaper.ShowMessageBox(
+        "REAPER recording was stopped, but OBS may still be recording.\n\n" ..
+        "Please check OBS Studio manually.\n\n" ..
+        "obs-cmd output:\n" .. obs_out,
+        "ReapOBS: OBS Stop Warning",
+        0
+      )
     end
   end
 

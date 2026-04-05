@@ -9,8 +9,6 @@
 # License: GNU GPL v2.0
 # ============================================================
 
-set -e
-
 # ------------------------------------------------------------
 # Color helpers
 # ------------------------------------------------------------
@@ -24,16 +22,23 @@ warn()    { echo -e "${YELLOW}[ReapOBS WARNING]${NC} $*"; }
 error()   { echo -e "${RED}[ReapOBS ERROR]${NC} $*"; }
 
 # ------------------------------------------------------------
-# Handle Ctrl+C gracefully
-# ------------------------------------------------------------
-trap 'echo; warn "Installation cancelled by user."; exit 1' INT
-
-# ------------------------------------------------------------
 # Variables
 # ------------------------------------------------------------
 REAPER_SCRIPTS_DIR="$HOME/.config/REAPER/Scripts/ReapOBS"
 OBS_CMD_URL="https://github.com/grigio/obs-cmd/releases/latest/download/obs-cmd-x64-linux.tar.gz"
 OBS_CMD_INSTALL_DIR="/usr/local/bin"
+TMP_DIR=""
+
+# ------------------------------------------------------------
+# Cleanup and signal handling
+# ------------------------------------------------------------
+cleanup() {
+  if [ -n "$TMP_DIR" ] && [ -d "$TMP_DIR" ]; then
+    rm -rf "$TMP_DIR"
+  fi
+}
+trap cleanup EXIT
+trap 'echo; warn "Installation cancelled by user."; exit 1' INT
 
 # Resolve the directory this script lives in so it works regardless
 # of where it is called from.
@@ -77,6 +82,13 @@ if ! command -v curl &>/dev/null; then
 fi
 info "curl found."
 
+# tar
+if ! command -v tar &>/dev/null; then
+  error "tar is required but not installed. Install it with: sudo apt install tar"
+  exit 1
+fi
+info "tar found."
+
 echo ""
 
 # ------------------------------------------------------------
@@ -94,10 +106,16 @@ else
     echo ""
     info "Downloading obs-cmd from GitHub..."
     TMP_DIR="$(mktemp -d)"
-    curl -fsSL "$OBS_CMD_URL" -o "$TMP_DIR/obs-cmd.tar.gz"
+    if ! curl -fsSL "$OBS_CMD_URL" -o "$TMP_DIR/obs-cmd.tar.gz"; then
+      error "Failed to download obs-cmd. Check your internet connection."
+      exit 1
+    fi
 
     info "Extracting obs-cmd..."
-    tar -xzf "$TMP_DIR/obs-cmd.tar.gz" -C "$TMP_DIR"
+    if ! tar -xzf "$TMP_DIR/obs-cmd.tar.gz" -C "$TMP_DIR"; then
+      error "Failed to extract obs-cmd archive."
+      exit 1
+    fi
 
     # Find the extracted binary
     OBS_CMD_BIN="$(find "$TMP_DIR" -name "obs-cmd" -type f | head -n1)"

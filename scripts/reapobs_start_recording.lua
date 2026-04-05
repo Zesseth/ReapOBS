@@ -40,11 +40,11 @@ end
 
 -- ------------------------------------------------------------
 -- Helper: run an obs-cmd command, return success + output
--- Alternative: reaper.ExecProcess() can also invoke binaries,
--- but io.popen() is simpler and captures stdout/stderr here.
+-- Uses timeout(1) to prevent REAPER from hanging if obs-cmd
+-- or the OBS WebSocket connection becomes unresponsive.
 -- ------------------------------------------------------------
 local function obs_cmd(command)
-  local full_cmd = OBS_CMD_PATH .. " --websocket " .. OBS_WEBSOCKET_URL .. " " .. command .. " 2>&1"
+  local full_cmd = "timeout 5 '" .. OBS_CMD_PATH .. "' --websocket '" .. OBS_WEBSOCKET_URL .. "' " .. command .. " 2>&1"
   log("Running: " .. full_cmd)
 
   local file = io.popen(full_cmd)
@@ -61,6 +61,11 @@ local function obs_cmd(command)
   log("obs-cmd output: " .. (output or ""))
   log("obs-cmd exit code: " .. tostring(exitcode))
 
+  -- timeout(1) returns exit code 124 when the command times out
+  if exitcode == 124 then
+    log("ERROR: obs-cmd timed out after 5 seconds")
+  end
+
   return success, output or ""
 end
 
@@ -73,18 +78,24 @@ local function is_reaper_recording()
 end
 
 -- ------------------------------------------------------------
--- Helper: verify the obs-cmd binary exists at the configured path
+-- Helper: verify the obs-cmd binary exists and is executable
 -- ------------------------------------------------------------
 local function check_obs_cmd_exists()
   local f = io.open(OBS_CMD_PATH, "r")
   if f then
     f:close()
-    log("obs-cmd found at: " .. OBS_CMD_PATH)
-    return true
   else
     log("ERROR: obs-cmd not found at: " .. OBS_CMD_PATH)
     return false
   end
+  -- Verify execute permission
+  local rc = os.execute("test -x '" .. OBS_CMD_PATH .. "'")
+  if not rc then
+    log("ERROR: obs-cmd is not executable: " .. OBS_CMD_PATH .. " (try: chmod +x " .. OBS_CMD_PATH .. ")")
+    return false
+  end
+  log("obs-cmd found at: " .. OBS_CMD_PATH)
+  return true
 end
 
 -- ------------------------------------------------------------
