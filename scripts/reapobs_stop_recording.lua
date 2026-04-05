@@ -13,6 +13,7 @@ local OBS_CMD_PATH = "/usr/local/bin/obs-cmd"
 -- Format: obsws://hostname:port or obsws://hostname:port/password
 -- Default OBS WebSocket port is 4455
 -- If you disabled authentication in OBS, omit the password part
+-- Note: password must not contain single quotes (')
 local OBS_WEBSOCKET_URL = "obsws://localhost:4455"
 
 -- Set to true to add a project marker at the recording stop position
@@ -21,9 +22,8 @@ local ADD_MARKER_ON_STOP = true
 -- Marker name prefix for stop markers
 local STOP_MARKER_PREFIX = "REC STOP"
 
--- Set to false to stop REAPER recording even if OBS connection fails
--- Set to true to require OBS to be available before REAPER stops recording
-local REQUIRE_OBS = true
+-- Note: REQUIRE_OBS is not used in the stop script. Stopping REAPER
+-- recording always proceeds regardless of OBS availability.
 
 -- Set to true to show status messages in the REAPER console
 local DEBUG = true
@@ -85,17 +85,19 @@ local function check_obs_cmd_exists()
   if f then
     f:close()
   else
-    log("ERROR: obs-cmd not found at: " .. OBS_CMD_PATH)
-    return false
+    local msg = "obs-cmd not found at: " .. OBS_CMD_PATH
+    log("ERROR: " .. msg)
+    return false, msg .. "\n\nPlease install obs-cmd or update OBS_CMD_PATH in this script.\nRun 'which obs-cmd' in a terminal to find its location."
   end
   -- Verify execute permission
   local rc = os.execute("test -x '" .. OBS_CMD_PATH .. "'")
   if not rc then
-    log("ERROR: obs-cmd is not executable: " .. OBS_CMD_PATH .. " (try: chmod +x " .. OBS_CMD_PATH .. ")")
-    return false
+    local msg = "obs-cmd is not executable: " .. OBS_CMD_PATH
+    log("ERROR: " .. msg)
+    return false, msg .. "\n\nFix with: chmod +x " .. OBS_CMD_PATH
   end
   log("obs-cmd found at: " .. OBS_CMD_PATH)
-  return true
+  return true, nil
 end
 
 -- ------------------------------------------------------------
@@ -128,12 +130,13 @@ local function stop_recording()
   end
 
   -- Stop OBS recording – alert the user if this fails
-  if not check_obs_cmd_exists() then
-    log("WARNING: obs-cmd not found – cannot stop OBS recording.")
+  local cmd_ok, cmd_err = check_obs_cmd_exists()
+  if not cmd_ok then
+    log("WARNING: " .. (cmd_err or "obs-cmd not available"))
     reaper.ShowMessageBox(
-      "REAPER recording was stopped, but obs-cmd was not found.\n" ..
+      "REAPER recording was stopped, but obs-cmd is not available.\n" ..
       "OBS Studio may still be recording.\n\n" ..
-      "Please check OBS Studio manually.",
+      cmd_err .. "\n\nPlease check OBS Studio manually.",
       "ReapOBS: OBS Stop Warning",
       0
     )

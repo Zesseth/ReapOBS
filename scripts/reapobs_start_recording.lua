@@ -13,6 +13,7 @@ local OBS_CMD_PATH = "/usr/local/bin/obs-cmd"
 -- Format: obsws://hostname:port or obsws://hostname:port/password
 -- Default OBS WebSocket port is 4455
 -- If you disabled authentication in OBS, omit the password part
+-- Note: password must not contain single quotes (')
 local OBS_WEBSOCKET_URL = "obsws://localhost:4455"
 
 -- Set to true to add a project marker at the recording start position
@@ -85,17 +86,19 @@ local function check_obs_cmd_exists()
   if f then
     f:close()
   else
-    log("ERROR: obs-cmd not found at: " .. OBS_CMD_PATH)
-    return false
+    local msg = "obs-cmd not found at: " .. OBS_CMD_PATH
+    log("ERROR: " .. msg)
+    return false, msg .. "\n\nPlease install obs-cmd or update OBS_CMD_PATH in this script.\nRun 'which obs-cmd' in a terminal to find its location."
   end
   -- Verify execute permission
   local rc = os.execute("test -x '" .. OBS_CMD_PATH .. "'")
   if not rc then
-    log("ERROR: obs-cmd is not executable: " .. OBS_CMD_PATH .. " (try: chmod +x " .. OBS_CMD_PATH .. ")")
-    return false
+    local msg = "obs-cmd is not executable: " .. OBS_CMD_PATH
+    log("ERROR: " .. msg)
+    return false, msg .. "\n\nFix with: chmod +x " .. OBS_CMD_PATH
   end
   log("obs-cmd found at: " .. OBS_CMD_PATH)
-  return true
+  return true, nil
 end
 
 -- ------------------------------------------------------------
@@ -119,15 +122,10 @@ local function start_recording()
     return
   end
 
-  -- Guard: obs-cmd binary must exist
-  if not check_obs_cmd_exists() then
-    reaper.ShowMessageBox(
-      "obs-cmd was not found at:\n" .. OBS_CMD_PATH ..
-      "\n\nPlease install obs-cmd or update OBS_CMD_PATH in this script.\n" ..
-      "Run 'which obs-cmd' in a terminal to find its location.",
-      "ReapOBS: obs-cmd Not Found",
-      0
-    )
+  -- Guard: obs-cmd binary must exist and be executable
+  local cmd_ok, cmd_err = check_obs_cmd_exists()
+  if not cmd_ok then
+    reaper.ShowMessageBox(cmd_err, "ReapOBS: obs-cmd Problem", 0)
     return
   end
 
