@@ -212,9 +212,9 @@ You can add a toolbar button in REAPER so you don't need to remember a keyboard 
 
 Alternatively, you can create a completely new toolbar: **View → Toolbars → New toolbar...** and add the ReapOBS actions there.
 
-ReapOBS includes a toolbar icon (`reapobs_toggle.png`) installed automatically by `install.sh` to `~/.config/REAPER/Data/toolbar_icons/`. The icon shows a video camera with a red REC indicator.
+ReapOBS includes a toolbar icon (`reapobs_toggle.png`) installed automatically by `install.sh` to `~/.config/REAPER/Data/toolbar_icons/`.
 
-> **Tip:** REAPER can highlight the toolbar button when recording is active. Right-click the toolbar → **Customize toolbar...**, select the ReapOBS action, and check **Show button as enabled for toggleable actions**.
+> **Tip:** REAPER can highlight the toolbar button when recording is active. Right-click the toolbar → **Customize toolbar...**, select the ReapOBS action, and check **Show button as enabled for toggleable actions**. This highlight is provided by REAPER; ReapOBS installs the single `reapobs_toggle.png` icon.
 
 ---
 
