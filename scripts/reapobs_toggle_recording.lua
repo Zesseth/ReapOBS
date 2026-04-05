@@ -37,6 +37,9 @@ local REQUIRE_OBS = true
 local DEBUG = false
 -- =================== END CONFIGURATION =====================
 
+-- get_action_context() must be called before any other REAPER API calls
+local _, _, SECTION_ID, CMD_ID = reaper.get_action_context()
+
 -- ------------------------------------------------------------
 -- Helper: log a message to the REAPER console (DEBUG only)
 -- ------------------------------------------------------------
@@ -109,6 +112,14 @@ local function check_obs_cmd_exists()
 end
 
 -- ------------------------------------------------------------
+-- Helper: update toolbar toggle state
+-- ------------------------------------------------------------
+local function update_toggle_state(state)
+  reaper.SetToggleCommandState(SECTION_ID, CMD_ID, state)
+  reaper.RefreshToolbar2(SECTION_ID, CMD_ID)
+end
+
+-- ------------------------------------------------------------
 -- Helper: add a project marker at the current play/edit position
 -- ------------------------------------------------------------
 local function add_marker(name)
@@ -176,6 +187,7 @@ local function start_recording()
     add_marker(MARKER_PREFIX)
   end
 
+  update_toggle_state(1)
   log("ReapOBS: Recording started successfully.")
 end
 
@@ -222,6 +234,7 @@ local function stop_recording()
     end
   end
 
+  update_toggle_state(0)
   log("ReapOBS: Recording stopped successfully.")
 end
 
@@ -235,6 +248,9 @@ local function toggle_recording()
     start_recording()
   end
 end
+
+-- Initialize toggle state to match current recording state
+update_toggle_state(is_reaper_recording() and 1 or 0)
 
 -- Run with pcall so an unexpected error never crashes REAPER
 local ok, err = pcall(toggle_recording)

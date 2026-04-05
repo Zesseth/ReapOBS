@@ -204,6 +204,31 @@ for script in \
   info "Installed: $DEST_FILE"
 done
 
+# ------------------------------------------------------------
+# Copy toolbar icons to REAPER's toolbar_icons directory
+# ------------------------------------------------------------
+TOOLBAR_ICONS_DIR="$HOME/.config/REAPER/Data/toolbar_icons"
+ICONS_SRC="$SCRIPT_DIR/icons"
+
+if [ -d "$ICONS_SRC" ]; then
+  info "Installing toolbar icons..."
+  mkdir -p "$TOOLBAR_ICONS_DIR"
+
+  for icon in reapobs_toggle.png; do
+    SRC="$ICONS_SRC/$icon"
+    DEST_FILE="$TOOLBAR_ICONS_DIR/$icon"
+
+    if [ -f "$SRC" ]; then
+      cp "$SRC" "$DEST_FILE"
+      info "Installed icon: $DEST_FILE"
+    else
+      warn "Icon not found: $SRC"
+    fi
+  done
+else
+  warn "Icons directory not found: $ICONS_SRC — skipping icon installation."
+fi
+
 echo ""
 
 # ------------------------------------------------------------
@@ -230,12 +255,17 @@ echo "3. Assign a keyboard shortcut (recommended):"
 echo "   In the Action List, select 'reapobs_toggle_recording'"
 echo "   Click 'Add shortcut...' and press e.g. Shift+R"
 echo ""
-echo "4. Configure the scripts (optional):"
+echo "4. Add a toolbar button with the ReapOBS icon (optional):"
+echo "   Right-click a toolbar → Customize toolbar..."
+echo "   Add the ReapOBS toggle action"
+echo "   Click the icon area (bottom left) → select 'reapobs_toggle'"
+echo ""
+echo "5. Configure the scripts (optional):"
 echo "   Edit any .lua file in $REAPER_SCRIPTS_DIR"
 echo "   Adjust OBS_CMD_PATH, OBS_WEBSOCKET_URL, and other settings"
 echo "   at the top of each script."
 echo ""
-echo "5. Arm tracks in REAPER for recording, then use your shortcut!"
+echo "6. Arm tracks in REAPER for recording, then use your shortcut!"
 echo ""
 info "For help and documentation, visit: https://github.com/Zesseth/ReapOBS"
 echo ""
