@@ -14,6 +14,7 @@ Lua ReaScript that synchronizes REAPER DAW and OBS Studio recording with a singl
 - [OBS Setup](#obs-setup)
 - [Configuration](#configuration)
 - [Usage](#usage)
+  - [Adding a Toolbar Button](#adding-a-toolbar-button)
 - [Recommended Workflow](#recommended-workflow)
 - [Synchronization Notes](#synchronization-notes)
 - [Troubleshooting](#troubleshooting)
@@ -156,7 +157,7 @@ Each script contains a configuration block at the top. Open the script in a text
 | `ADD_MARKER_ON_STOP` | `true` | Add a REAPER project marker when recording stops. |
 | `STOP_MARKER_PREFIX` | `"REC STOP"` | Text label for stop markers. |
 | `REQUIRE_OBS` | `true` | When `true`, REAPER recording will not start if OBS is unavailable. Set to `false` to record REAPER audio even without OBS. |
-| `DEBUG` | `true` | Print status messages to the REAPER console. Disable for silent operation. |
+| `DEBUG` | `false` | Print status messages to the REAPER console. Enable for troubleshooting. Error dialogs (e.g., connection failures) always appear regardless of this setting. |
 
 **Example: passwordless local connection**
 ```lua
@@ -194,6 +195,22 @@ This is the script to assign to a keyboard shortcut. **Recommended shortcut: `Sh
 - Stops REAPER recording via Transport: Stop (action 1016)
 - Optionally adds a `REC STOP` marker to the REAPER timeline
 - Stops OBS recording via `obs-cmd recording stop`
+
+### Adding a Toolbar Button
+
+You can add a toolbar button in REAPER so you don't need to remember a keyboard shortcut:
+
+1. Go to **Actions → Show Action List**
+2. Find the ReapOBS script you want (e.g., `Script: reapobs_toggle_recording.lua`)
+3. Right-click the action and select **Copy selected action command ID**
+4. Close the Action List
+5. Right-click on any **toolbar** and select **Customize toolbar...**
+6. Click **Add...** and paste the command ID, or use the **Filter** to find the ReapOBS action
+7. Click **OK** to save
+
+Alternatively, you can create a completely new toolbar: **View → Toolbars → New toolbar...** and add the ReapOBS actions there.
+
+> **Tip:** REAPER does not include a dedicated ReapOBS icon, so the button will use a default icon. You can add a custom icon by placing a `.png` file in `~/.config/REAPER/Data/toolbar_icons/` and selecting it in the toolbar customization dialog.
 
 ---
 

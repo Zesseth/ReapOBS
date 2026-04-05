@@ -26,7 +26,8 @@ local STOP_MARKER_PREFIX = "REC STOP"
 -- recording always proceeds regardless of OBS availability.
 
 -- Set to true to show status messages in the REAPER console
-local DEBUG = true
+-- Useful for troubleshooting; error dialogs always appear regardless of this setting
+local DEBUG = false
 -- =================== END CONFIGURATION =====================
 
 -- ------------------------------------------------------------

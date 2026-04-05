@@ -27,7 +27,8 @@ local MARKER_PREFIX = "REC START"
 local REQUIRE_OBS = true
 
 -- Set to true to show status messages in the REAPER console
-local DEBUG = true
+-- Useful for troubleshooting; error dialogs always appear regardless of this setting
+local DEBUG = false
 -- =================== END CONFIGURATION =====================
 
 -- ------------------------------------------------------------
