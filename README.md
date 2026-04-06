@@ -245,7 +245,7 @@ ReapOBS includes a toolbar icon (`reapobs_toggle.png`) installed automatically b
 When `AUTO_IMPORT_VIDEO` is enabled (the default) and `OBS_OUTPUT_DIR` is configured, ReapOBS automatically imports the OBS video recording into REAPER after you stop recording. The pipeline works as follows:
 
 1. **Detect** – Scans `OBS_OUTPUT_DIR` for the most recently modified video file (MKV, MP4, AVI, MOV, FLV, TS, WebM) created within the last 5 minutes.
-2. **Convert** – Uses ffmpeg to convert (or remux) the video into the configured `VIDEO_FORMAT` (default: MP4). The default `FFMPEG_ARGS` remux without re-encoding, which is nearly instant.
+2. **Convert** – Uses ffmpeg to convert (or remux) the video into the configured `VIDEO_FORMAT` (default: MP4). The default `FFMPEG_ARGS` remuxes without re-encoding, which is nearly instant.
 3. **Move** – The converted file is placed in the current REAPER project directory (from `reaper.GetProjectPath()`).
 4. **Create tracks** – A "Videos" folder (bus) track is created at the top of the track list if one doesn't already exist. A new child track is created inside this folder, named after the video file (without extension).
 5. **Import & align** – The video is imported onto the child track and positioned at the recording start time (from the `REC START` marker or stored ExtState).

@@ -411,8 +411,8 @@ local function auto_import_video()
   end
   reaper.ShowConsoleMsg("[ReapOBS] Video saved to: " .. converted_path .. "\n")
 
-  -- Optionally delete the original
-  if DELETE_ORIGINAL then
+  -- Optionally delete the original, but never when it is the same file we are importing
+  if DELETE_ORIGINAL and video_file ~= converted_path then
     local del_ok = os.execute("rm '" .. video_file .. "'")
     if del_ok then
       log("Original video deleted: " .. video_file)
