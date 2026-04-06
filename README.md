@@ -16,6 +16,7 @@ Lua ReaScript that synchronizes REAPER DAW and OBS Studio recording with a singl
 - [Usage](#usage)
   - [Adding a Toolbar Button](#adding-a-toolbar-button)
 - [Recommended Workflow](#recommended-workflow)
+- [Auto-Import Video](#auto-import-video)
 - [Synchronization Notes](#synchronization-notes)
 - [Troubleshooting](#troubleshooting)
 - [Audio Stack Notes](#audio-stack-notes)
@@ -81,6 +82,7 @@ REAPER (Lua ReaScript)
 | REAPER | v6.0+ | Linux native build |
 | OBS Studio | v28.0+ | obs-websocket v5 is built in |
 | obs-cmd | latest | Installed by `install.sh` or manually |
+| ffmpeg | any | Required for auto-import video feature (`sudo apt install ffmpeg`) |
 | Linux | Debian/Ubuntu | Tested on Debian with PipeWire audio |
 | curl | any | Required for obs-cmd download |
 
@@ -158,6 +160,12 @@ Each script contains a configuration block at the top. Open the script in a text
 | `STOP_MARKER_PREFIX` | `"REC STOP"` | Text label for stop markers. |
 | `REQUIRE_OBS` | `true` | When `true`, REAPER recording will not start if OBS is unavailable. Set to `false` to record REAPER audio even without OBS. |
 | `DEBUG` | `false` | Print status messages to the REAPER console. Enable for troubleshooting. Error dialogs (e.g., connection failures) always appear regardless of this setting. |
+| `AUTO_IMPORT_VIDEO` | `true` | When `true`, automatically detects the OBS video after recording stops, converts it, moves it into the REAPER project folder, and imports it onto a new track aligned to the recording start position. Set to `false` to disable. |
+| `FFMPEG_PATH` | `/usr/bin/ffmpeg` | Full path to the ffmpeg binary. Run `which ffmpeg` to find it. Required for auto-import. |
+| `VIDEO_FORMAT` | `"mp4"` | Output container format for the converted video. |
+| `FFMPEG_ARGS` | `"-c:v copy -c:a aac"` | ffmpeg arguments for conversion. Default remuxes without re-encoding (fast). Change to e.g. `"-c:v libx264 -c:a aac"` to re-encode. |
+| `DELETE_ORIGINAL` | `false` | When `true`, deletes the original OBS recording from `OBS_OUTPUT_DIR` after a successful conversion. |
+| `OBS_OUTPUT_DIR` | `""` (empty) | Absolute path to the directory where OBS saves recordings. Find it in OBS: **Settings → Output → Recording Path**. **Must be set** for auto-import to work. |
 
 **Example: passwordless local connection**
 ```lua
@@ -226,8 +234,31 @@ ReapOBS includes a toolbar icon (`reapobs_toggle.png`) installed automatically b
 4. **Press your assigned shortcut** (e.g., `Shift+R`) to start both applications recording simultaneously
 5. **Perform your recording** — audio in REAPER, video in OBS
 6. **Press the same shortcut** to stop both
-7. Your audio file is in REAPER's project folder; your video file is in OBS's output directory
-8. **Import the video** into your editor and align using the `REC START` / `REC STOP` project markers if needed
+7. **Auto-import** (if enabled): The script automatically converts the OBS video, moves it to your REAPER project folder, creates a "Videos" bus track with a child track, and imports the video aligned to the `REC START` marker
+8. **Fine-tune sync** if needed — nudge the video item by a few milliseconds to align perfectly with the audio
+9. Continue with editing, mixing, and final production
+
+---
+
+## Auto-Import Video
+
+When `AUTO_IMPORT_VIDEO` is enabled (the default) and `OBS_OUTPUT_DIR` is configured, ReapOBS automatically imports the OBS video recording into REAPER after you stop recording. The pipeline works as follows:
+
+1. **Detect** – Scans `OBS_OUTPUT_DIR` for the most recently modified video file (MKV, MP4, AVI, MOV, FLV, TS, WebM) created within the last 5 minutes.
+2. **Convert** – Uses ffmpeg to convert (or remux) the video into the configured `VIDEO_FORMAT` (default: MP4). The default `FFMPEG_ARGS` remux without re-encoding, which is nearly instant.
+3. **Move** – The converted file is placed in the current REAPER project directory (from `reaper.GetProjectPath()`).
+4. **Create tracks** – A "Videos" folder (bus) track is created at the top of the track list if one doesn't already exist. A new child track is created inside this folder, named after the video file (without extension).
+5. **Import & align** – The video is imported onto the child track and positioned at the recording start time (from the `REC START` marker or stored ExtState).
+
+### Prerequisites for Auto-Import
+
+- **ffmpeg** must be installed: `sudo apt install ffmpeg`
+- **`OBS_OUTPUT_DIR`** must be set to the absolute path where OBS saves recordings (find it in OBS: **Settings → Output → Recording Path**)
+- The REAPER project must be saved (so `GetProjectPath()` returns a valid directory)
+
+### Disabling Auto-Import
+
+Set `AUTO_IMPORT_VIDEO = false` in the configuration block of the stop or toggle script. When disabled, ReapOBS behaves exactly as before: it stops both applications and the user manages the video file manually.
 
 ---
 
@@ -253,6 +284,11 @@ ReapOBS includes a toolbar icon (`reapobs_toggle.png`) installed automatically b
 | Scripts don't appear in Actions | Re-load them: **Actions → Show Action List → New action... → Load ReaScript...**. |
 | `Permission denied` on obs-cmd | Run `chmod +x /usr/local/bin/obs-cmd`. |
 | Significant audio/video sync offset | Use a clap or click reference at the start and adjust in post. You can also try setting `REQUIRE_OBS = false` and experimenting with the order of operations. |
+| Auto-import: `OBS_OUTPUT_DIR is not set` | Set `OBS_OUTPUT_DIR` in the script to the directory where OBS saves recordings (OBS: **Settings → Output → Recording Path**). |
+| Auto-import: `ffmpeg not found` | Install ffmpeg: `sudo apt install ffmpeg`. Or update `FFMPEG_PATH` if it's installed at a non-standard location. |
+| Auto-import: `No recent video file found` | Verify `OBS_OUTPUT_DIR` is correct and that OBS actually recorded a file. The script only looks for files modified within the last 5 minutes. |
+| Auto-import: `Video conversion failed` | Check that ffmpeg supports the input format. Try running the ffmpeg command manually. Enable `DEBUG = true` for detailed output. |
+| Auto-import: `Could not determine REAPER project path` | Save your REAPER project before recording. The project path is needed to store the converted video. |
 
 ---
 
