@@ -35,6 +35,28 @@ local REQUIRE_OBS = true
 -- Set to true to show status messages in the REAPER console
 -- Useful for troubleshooting; error dialogs always appear regardless of this setting
 local DEBUG = false
+
+-- ---- Auto-import video settings ----
+-- Set to true to automatically import OBS video into the REAPER project after recording
+local AUTO_IMPORT_VIDEO = true
+
+-- Path to ffmpeg binary. Find it with: which ffmpeg
+local FFMPEG_PATH = "/usr/bin/ffmpeg"
+
+-- Output format for the converted video file
+local VIDEO_FORMAT = "mp4"
+
+-- ffmpeg arguments for conversion. Default remuxes without re-encoding (fast).
+-- Change to e.g. "-c:v libx264 -c:a aac" to re-encode.
+local FFMPEG_ARGS = "-c:v copy -c:a aac"
+
+-- Set to true to delete the original OBS recording after successful conversion
+local DELETE_ORIGINAL = false
+
+-- OBS output directory where OBS saves recordings
+-- Find in OBS: Settings → Output → Recording Path
+-- Must be an absolute path
+local OBS_OUTPUT_DIR = ""
 -- =================== END CONFIGURATION =====================
 
 -- get_action_context() must be called before any other REAPER API calls
@@ -129,6 +151,300 @@ local function add_marker(name)
 end
 
 -- ------------------------------------------------------------
+-- Helper: get the recording start position for video alignment
+-- Tries ExtState first, then falls back to scanning for the
+-- most recent REC START marker.
+-- ------------------------------------------------------------
+local function get_rec_start_position()
+  local stored = reaper.GetExtState("ReapOBS", "rec_start_pos")
+  if stored and stored ~= "" then
+    local pos = tonumber(stored)
+    if pos then
+      log("Recording start position from ExtState: " .. tostring(pos))
+      return pos
+    end
+  end
+  local num_markers = reaper.CountProjectMarkers(0)
+  for i = num_markers - 1, 0, -1 do
+    local _, _, pos, _, name, _ = reaper.EnumProjectMarkers(i)
+    if name and name:find("^" .. MARKER_PREFIX) then
+      log("Recording start position from marker: " .. tostring(pos))
+      return pos
+    end
+  end
+  log("WARNING: Could not determine recording start position, defaulting to 0")
+  return 0
+end
+
+-- ------------------------------------------------------------
+-- Helper: find the most recent video file in a directory
+-- ------------------------------------------------------------
+local function find_latest_video(dir)
+  local cmd = "find '" .. dir .. "' -maxdepth 1 -type f " ..
+    "\\( -name '*.mkv' -o -name '*.mp4' -o -name '*.avi' " ..
+    "-o -name '*.mov' -o -name '*.flv' -o -name '*.ts' -o -name '*.webm' \\) " ..
+    "-mmin -5 -printf '%T@ %p\\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-"
+  log("Scanning for video: " .. cmd)
+  local file = io.popen(cmd)
+  if not file then return nil end
+  local result = file:read("*a")
+  file:close()
+  if result then
+    result = result:gsub("^%s+", ""):gsub("%s+$", "")
+  end
+  if not result or result == "" then return nil end
+  return result
+end
+
+-- ------------------------------------------------------------
+-- Helper: check if ffmpeg is available
+-- ------------------------------------------------------------
+local function check_ffmpeg_exists()
+  local f = io.open(FFMPEG_PATH, "r")
+  if f then
+    f:close()
+  else
+    log("ERROR: ffmpeg not found at: " .. FFMPEG_PATH)
+    return false
+  end
+  local rc = os.execute("test -x '" .. FFMPEG_PATH .. "'")
+  if not rc then
+    log("ERROR: ffmpeg is not executable: " .. FFMPEG_PATH)
+    return false
+  end
+  return true
+end
+
+-- ------------------------------------------------------------
+-- Helper: convert video using ffmpeg
+-- Returns success (bool) and the output path on success.
+-- ------------------------------------------------------------
+local function convert_video(input_path, output_dir)
+  local basename = input_path:match("([^/]+)$") or "video"
+  local name_no_ext = basename:match("(.+)%..+$") or basename
+  local output_path = output_dir .. "/" .. name_no_ext .. "." .. VIDEO_FORMAT
+
+  local input_ext = input_path:match("%.([^%.]+)$")
+  if input_ext and input_ext:lower() == VIDEO_FORMAT:lower() then
+    if input_path == output_path then
+      log("Video is already at the destination in the correct format.")
+      return true, output_path
+    end
+    log("Video is already in " .. VIDEO_FORMAT .. " format, copying directly.")
+    local cp_ok = os.execute("cp '" .. input_path .. "' '" .. output_path .. "'")
+    if cp_ok then
+      return true, output_path
+    else
+      log("ERROR: Failed to copy video file.")
+      return false, nil
+    end
+  end
+
+  local cmd = "'" .. FFMPEG_PATH .. "' -y -i '" .. input_path .. "' " ..
+    FFMPEG_ARGS .. " '" .. output_path .. "' 2>&1"
+  log("Converting video: " .. cmd)
+
+  local file = io.popen(cmd)
+  if not file then
+    log("ERROR: Failed to run ffmpeg")
+    return false, nil
+  end
+  local output = file:read("*a")
+  local ok, _, exitcode = file:close()
+  local success = (ok == true) and (exitcode == 0)
+
+  if not success then
+    log("ERROR: ffmpeg conversion failed (exit " .. tostring(exitcode) .. "): " .. (output or ""))
+    return false, nil
+  end
+
+  log("Video converted successfully: " .. output_path)
+  return true, output_path
+end
+
+-- ------------------------------------------------------------
+-- Helper: extract filename without path or extension
+-- ------------------------------------------------------------
+local function filename_no_ext(path)
+  local basename = path:match("([^/]+)$") or "video"
+  return basename:match("(.+)%..+$") or basename
+end
+
+-- ------------------------------------------------------------
+-- Helper: find or create the "Videos" folder (bus) track
+-- Creates at position 0 (topmost) if it does not exist.
+-- Does not touch any other tracks.
+-- ------------------------------------------------------------
+local function get_or_create_videos_bus()
+  local count = reaper.CountTracks(0)
+  for i = 0, count - 1 do
+    local track = reaper.GetTrack(0, i)
+    local _, name = reaper.GetSetMediaTrackInfo_String(track, "P_NAME", "", false)
+    local fd = reaper.GetMediaTrackInfo_Value(track, "I_FOLDERDEPTH")
+    if name == "Videos" and fd == 1 then
+      log("Found existing Videos bus at track index " .. tostring(i))
+      return track, i
+    end
+  end
+  reaper.InsertTrackAtIndex(0, true)
+  local bus = reaper.GetTrack(0, 0)
+  reaper.GetSetMediaTrackInfo_String(bus, "P_NAME", "Videos", true)
+  reaper.SetMediaTrackInfo_Value(bus, "I_FOLDERDEPTH", 1)
+  log("Created Videos bus at track index 0")
+  return bus, 0
+end
+
+-- ------------------------------------------------------------
+-- Helper: insert a new child track at the end of a folder
+-- Properly adjusts folder depth values so existing tracks
+-- are not affected.
+-- ------------------------------------------------------------
+local function insert_child_in_folder(bus_idx, track_name)
+  local count = reaper.CountTracks(0)
+  local depth = 0
+  local last_child_idx = bus_idx
+
+  for i = bus_idx + 1, count - 1 do
+    local track = reaper.GetTrack(0, i)
+    local fd = reaper.GetMediaTrackInfo_Value(track, "I_FOLDERDEPTH")
+    depth = depth + fd
+    if depth < 0 then
+      last_child_idx = i
+      reaper.SetMediaTrackInfo_Value(track, "I_FOLDERDEPTH", fd + 1)
+      break
+    end
+    last_child_idx = i
+  end
+
+  local insert_idx
+  if last_child_idx == bus_idx then
+    insert_idx = bus_idx + 1
+  else
+    insert_idx = last_child_idx + 1
+  end
+
+  reaper.InsertTrackAtIndex(insert_idx, true)
+  local new_track = reaper.GetTrack(0, insert_idx)
+  reaper.GetSetMediaTrackInfo_String(new_track, "P_NAME", track_name, true)
+  reaper.SetMediaTrackInfo_Value(new_track, "I_FOLDERDEPTH", -1)
+  log("Created child track '" .. track_name .. "' at index " .. tostring(insert_idx))
+  return new_track
+end
+
+-- ------------------------------------------------------------
+-- Helper: import video file onto a track at a given position
+-- Uses low-level API to avoid side effects on other tracks.
+-- ------------------------------------------------------------
+local function import_video_to_track(track, video_path, position)
+  local source = reaper.PCM_Source_CreateFromFile(video_path)
+  if not source then
+    log("ERROR: Failed to create PCM source from: " .. video_path)
+    return false
+  end
+
+  local length = reaper.GetMediaSourceLength(source)
+  if not length or length <= 0 then
+    log("WARNING: Could not determine video length, using 1 second fallback")
+    length = 1
+  end
+
+  local item = reaper.AddMediaItemToTrack(track)
+  if not item then
+    log("ERROR: Failed to create media item on track")
+    return false
+  end
+
+  local take = reaper.AddTakeToMediaItem(item)
+  if not take then
+    log("ERROR: Failed to add take to media item")
+    return false
+  end
+
+  reaper.SetMediaItemTake_Source(take, source)
+  reaper.SetMediaItemInfo_Value(item, "D_POSITION", position)
+  reaper.SetMediaItemInfo_Value(item, "D_LENGTH", length)
+  reaper.UpdateArrange()
+
+  log("Video imported at position " .. tostring(position) .. ", length " .. tostring(length))
+  return true
+end
+
+-- ------------------------------------------------------------
+-- Auto-import: detect, convert, and import OBS video
+-- ------------------------------------------------------------
+local function auto_import_video()
+  if not AUTO_IMPORT_VIDEO then
+    log("Auto-import is disabled.")
+    return
+  end
+
+  if OBS_OUTPUT_DIR == "" then
+    log("Auto-import skipped: OBS_OUTPUT_DIR is not configured.")
+    reaper.ShowConsoleMsg("[ReapOBS] Auto-import skipped: OBS_OUTPUT_DIR is not set. " ..
+      "Configure it in the script to enable auto-import.\n")
+    return
+  end
+
+  if not check_ffmpeg_exists() then
+    reaper.ShowConsoleMsg("[ReapOBS] Auto-import skipped: ffmpeg not found at " ..
+      FFMPEG_PATH .. ". Install with: sudo apt install ffmpeg\n")
+    return
+  end
+
+  reaper.ShowConsoleMsg("[ReapOBS] Looking for OBS video in: " .. OBS_OUTPUT_DIR .. "\n")
+  local video_file = find_latest_video(OBS_OUTPUT_DIR)
+  if not video_file then
+    reaper.ShowConsoleMsg("[ReapOBS] Auto-import: No recent video file found in " ..
+      OBS_OUTPUT_DIR .. ". Check OBS output directory setting.\n")
+    return
+  end
+  reaper.ShowConsoleMsg("[ReapOBS] Found OBS video: " .. video_file .. "\n")
+
+  local project_path = reaper.GetProjectPath("")
+  if not project_path or project_path == "" then
+    reaper.ShowConsoleMsg("[ReapOBS] Auto-import: Could not determine REAPER project path. " ..
+      "Save your project first.\n")
+    return
+  end
+
+  reaper.ShowConsoleMsg("[ReapOBS] Converting video to " .. VIDEO_FORMAT .. "...\n")
+  local conv_ok, converted_path = convert_video(video_file, project_path)
+  if not conv_ok or not converted_path then
+    reaper.ShowConsoleMsg("[ReapOBS] Auto-import: Video conversion failed. " ..
+      "Check ffmpeg installation and video file.\n")
+    return
+  end
+  reaper.ShowConsoleMsg("[ReapOBS] Video saved to: " .. converted_path .. "\n")
+
+  if DELETE_ORIGINAL then
+    local del_ok = os.execute("rm '" .. video_file .. "'")
+    if del_ok then
+      log("Original video deleted: " .. video_file)
+    else
+      log("WARNING: Failed to delete original: " .. video_file)
+    end
+  end
+
+  local rec_start = get_rec_start_position()
+
+  reaper.Undo_BeginBlock()
+
+  local video_name = filename_no_ext(converted_path)
+  local _, bus_idx = get_or_create_videos_bus()
+  local child_track = insert_child_in_folder(bus_idx, video_name)
+  local import_ok = import_video_to_track(child_track, converted_path, rec_start)
+
+  reaper.Undo_EndBlock("ReapOBS: Import OBS video", -1)
+
+  if import_ok then
+    reaper.ShowConsoleMsg("[ReapOBS] Video imported successfully on track '" ..
+      video_name .. "' at position " .. string.format("%.3f", rec_start) .. "s\n")
+  else
+    reaper.ShowConsoleMsg("[ReapOBS] Auto-import: Failed to import video onto track.\n")
+  end
+end
+
+-- ------------------------------------------------------------
 -- Start logic (inline – REAPER Lua has no cross-script imports)
 -- ------------------------------------------------------------
 local function start_recording()
@@ -183,6 +499,11 @@ local function start_recording()
   -- Start REAPER recording (action 1013 = Transport: Record)
   reaper.Main_OnCommand(1013, 0)
 
+  -- Store the recording start position for auto-import alignment
+  local rec_pos = reaper.GetPlayPosition()
+  reaper.SetExtState("ReapOBS", "rec_start_pos", tostring(rec_pos), false)
+  log("Stored recording start position: " .. tostring(rec_pos))
+
   if ADD_MARKER_ON_START then
     add_marker(MARKER_PREFIX)
   end
@@ -236,6 +557,9 @@ local function stop_recording()
 
   update_toggle_state(0)
   log("ReapOBS: Recording stopped successfully.")
+
+  -- Auto-import OBS video into the project
+  auto_import_video()
 end
 
 -- ------------------------------------------------------------

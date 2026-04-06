@@ -89,6 +89,14 @@ if ! command -v tar &>/dev/null; then
 fi
 info "tar found."
 
+# ffmpeg (optional – required for auto-import video feature)
+if command -v ffmpeg &>/dev/null; then
+  info "ffmpeg found: $(command -v ffmpeg)"
+else
+  warn "ffmpeg is not installed. The auto-import video feature requires ffmpeg."
+  warn "Install with: sudo apt install ffmpeg"
+fi
+
 echo ""
 
 # ------------------------------------------------------------

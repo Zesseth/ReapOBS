@@ -171,6 +171,11 @@ local function start_recording()
   -- Start REAPER recording (action 1013 = Transport: Record)
   reaper.Main_OnCommand(1013, 0)
 
+  -- Store the recording start position for auto-import alignment
+  local rec_pos = reaper.GetPlayPosition()
+  reaper.SetExtState("ReapOBS", "rec_start_pos", tostring(rec_pos), false)
+  log("Stored recording start position: " .. tostring(rec_pos))
+
   -- Optionally mark the start position
   if ADD_MARKER_ON_START then
     add_marker(MARKER_PREFIX)
