@@ -28,6 +28,7 @@ REAPER_SCRIPTS_DIR="$HOME/.config/REAPER/Scripts/ReapOBS"
 OBS_CMD_URL="https://github.com/grigio/obs-cmd/releases/latest/download/obs-cmd-x64-linux.tar.gz"
 OBS_CMD_INSTALL_DIR="/usr/local/bin"
 TMP_DIR=""
+CONFIG_COPIED=false
 
 # ------------------------------------------------------------
 # Cleanup and signal handling
@@ -88,6 +89,14 @@ if ! command -v tar &>/dev/null; then
   exit 1
 fi
 info "tar found."
+
+# ffmpeg (optional, for auto-import feature)
+if ! command -v ffmpeg &>/dev/null; then
+  warn "ffmpeg is not installed. It is required for the auto-import feature."
+  warn "Install it with: sudo apt install ffmpeg"
+else
+  info "ffmpeg found: $(command -v ffmpeg)"
+fi
 
 echo ""
 
@@ -178,11 +187,16 @@ if [ ! -d "$SCRIPTS_SRC" ]; then
   exit 1
 fi
 
-for script in \
-  reapobs_start_recording.lua \
-  reapobs_stop_recording.lua \
-  reapobs_toggle_recording.lua; do
+# List of all Lua scripts to install
+SCRIPTS=(
+  reapobs_config.lua
+  reapobs_common.lua
+  reapobs_start_recording.lua
+  reapobs_stop_recording.lua
+  reapobs_toggle_recording.lua
+)
 
+for script in "${SCRIPTS[@]}"; do
   SRC="$SCRIPTS_SRC/$script"
   DEST_FILE="$REAPER_SCRIPTS_DIR/$script"
 
@@ -202,7 +216,17 @@ for script in \
 
   cp "$SRC" "$DEST_FILE"
   info "Installed: $DEST_FILE"
+
+  if [ "$script" = "reapobs_config.lua" ]; then
+    CONFIG_COPIED=true
+  fi
 done
+
+if [ "$CONFIG_COPIED" = true ]; then
+  CONFIG_FILE="$REAPER_SCRIPTS_DIR/reapobs_config.lua"
+  sed -i -E 's/^[[:space:]]*AUTO_IMPORT_VIDEO[[:space:]]*=.*/AUTO_IMPORT_VIDEO = true/' "$CONFIG_FILE"
+  info "Set AUTO_IMPORT_VIDEO default to true in $CONFIG_FILE"
+fi
 
 # ------------------------------------------------------------
 # Copy toolbar icons to REAPER's toolbar_icons directory
@@ -226,7 +250,7 @@ if [ -d "$ICONS_SRC" ]; then
     fi
   done
 else
-  warn "Icons directory not found: $ICONS_SRC — skipping icon installation."
+  warn "Icons directory not found: $ICONS_SRC  skipping icon installation."
 fi
 
 echo ""
@@ -241,29 +265,30 @@ echo ""
 echo "Next steps:"
 echo ""
 echo "1. Configure OBS WebSocket Server:"
-echo "   Open OBS Studio → Tools → WebSocket Server Settings"
+echo "   Open OBS Studio  Tools  WebSocket Server Settings"
 echo "   Enable the WebSocket Server (default port: 4455)"
 echo "   Set or disable authentication as desired"
 echo ""
-echo "2. Load scripts into REAPER:"
-echo "   Open REAPER → Actions → Show Action List"
-echo "   Click 'New action...' → 'Load ReaScript...'"
-echo "   Navigate to: $REAPER_SCRIPTS_DIR"
-echo "   Load all three .lua scripts"
+echo "2. Configure ReapOBS (optional):"
+echo "   Edit $REAPER_SCRIPTS_DIR/reapobs_config.lua"
+echo "   Adjust OBS_CMD_PATH, OBS_WEBSOCKET_URL, OBS_OUTPUT_DIR, and other settings"
+echo "   AUTO_IMPORT_VIDEO is enabled by default"
+echo "   In OBS, set Recording Format to MP4 for reliable auto-import"
 echo ""
-echo "3. Assign a keyboard shortcut (recommended):"
+echo "3. Load scripts into REAPER:"
+echo "   Open REAPER  Actions  Show Action List"
+echo "   Click 'New action...'  'Load ReaScript...'"
+echo "   Navigate to: $REAPER_SCRIPTS_DIR"
+echo "   Load all the .lua scripts (reapobs_toggle_recording.lua recommended)"
+echo ""
+echo "4. Assign a keyboard shortcut (recommended):"
 echo "   In the Action List, select 'reapobs_toggle_recording'"
 echo "   Click 'Add shortcut...' and press e.g. Shift+R"
 echo ""
-echo "4. Add a toolbar button with the ReapOBS icon (optional):"
-echo "   Right-click a toolbar → Customize toolbar..."
+echo "5. Add a toolbar button with the ReapOBS icon (optional):"
+echo "   Right-click a toolbar  Customize toolbar..."
 echo "   Add the ReapOBS toggle action"
-echo "   Click the icon area (bottom left) → select 'reapobs_toggle'"
-echo ""
-echo "5. Configure the scripts (optional):"
-echo "   Edit any .lua file in $REAPER_SCRIPTS_DIR"
-echo "   Adjust OBS_CMD_PATH, OBS_WEBSOCKET_URL, and other settings"
-echo "   at the top of each script."
+echo "   Click the icon area (bottom left)  select 'reapobs_toggle'"
 echo ""
 echo "6. Arm tracks in REAPER for recording, then use your shortcut!"
 echo ""
