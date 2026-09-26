@@ -1,5 +1,5 @@
 -- ============================================================
--- ReapOBS  Central Configuration
+-- ReapOBS – Central Configuration
 -- Shared configuration for all ReapOBS scripts
 -- https://github.com/Zesseth/ReapOBS
 -- License: GNU GPL v2.0

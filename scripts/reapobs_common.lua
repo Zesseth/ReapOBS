@@ -1,5 +1,5 @@
 -- ============================================================
--- ReapOBS  Common Functions Library
+-- ReapOBS – Common Functions Library
 -- Shared functions for all ReapOBS scripts
 -- https://github.com/Zesseth/ReapOBS
 -- License: GNU GPL v2.0
@@ -147,6 +147,16 @@ end
 -- ------------------------------------------------------------
 local function add_marker(name)
   local pos = reaper.GetPlayPosition()
+  reaper.AddProjectMarker(0, false, pos, 0, name, -1)
+  log("Marker added: '" .. name .. "' at position " .. tostring(pos))
+end
+
+-- ------------------------------------------------------------
+-- Helper: add a project marker at an explicit position
+-- Use this when the position must be captured before an action
+-- changes the transport state (e.g. before stopping recording).
+-- ------------------------------------------------------------
+local function add_marker_at(name, pos)
   reaper.AddProjectMarker(0, false, pos, 0, name, -1)
   log("Marker added: '" .. name .. "' at position " .. tostring(pos))
 end
@@ -621,6 +631,7 @@ return {
   check_ffmpeg_exists = check_ffmpeg_exists,
   check_obs_output_dir = check_obs_output_dir,
   add_marker = add_marker,
+  add_marker_at = add_marker_at,
   shell_escape = shell_escape,
   validate_websocket_url = validate_websocket_url,
   get_rec_start_position = get_rec_start_position,

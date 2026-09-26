@@ -1,5 +1,5 @@
 -- ============================================================
--- ReapOBS  Stop Recording
+-- ReapOBS – Stop Recording
 -- Stops both REAPER and OBS Studio recording simultaneously
 -- https://github.com/Zesseth/ReapOBS
 -- License: GNU GPL v2.0
@@ -13,7 +13,7 @@ local log = common.log
 local obs_cmd = common.obs_cmd
 local is_reaper_recording = common.is_reaper_recording
 local check_obs_cmd_exists = common.check_obs_cmd_exists
-local add_marker = common.add_marker
+local add_marker_at = common.add_marker_at
 local config = common.config
 local auto_import_latest_video = common.auto_import_latest_video
 
@@ -34,15 +34,19 @@ local function stop_recording()
 
   log("ReapOBS: Stopping synchronized recording...")
 
+  -- Capture the stop position before stopping, because
+  -- GetPlayPosition() returns 0 once the transport is no longer recording
+  local stop_pos = reaper.GetPlayPosition()
+
   -- Stop REAPER recording first (use constant from config)
   reaper.Main_OnCommand(config.REAPER_ACTION_STOP, 0)
 
   -- Optionally mark the stop position
   if config.ADD_MARKER_ON_STOP then
-    add_marker(config.STOP_MARKER_PREFIX)
+    add_marker_at(config.STOP_MARKER_PREFIX, stop_pos)
   end
 
-  -- Stop OBS recording  alert the user if this fails
+  -- Stop OBS recording – alert the user if this fails
   local cmd_ok, cmd_err = check_obs_cmd_exists()
   if not cmd_ok then
     log("WARNING: " .. (cmd_err or "obs-cmd not available"))

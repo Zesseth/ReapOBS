@@ -1,5 +1,5 @@
 -- ============================================================
--- ReapOBS  Toggle Recording
+-- ReapOBS – Toggle Recording
 -- Toggles both REAPER and OBS Studio recording based on current state
 -- https://github.com/Zesseth/ReapOBS
 -- License: GNU GPL v2.0
@@ -15,6 +15,7 @@ local is_reaper_recording = common.is_reaper_recording
 local check_obs_cmd_exists = common.check_obs_cmd_exists
 local check_obs_output_dir = common.check_obs_output_dir
 local add_marker = common.add_marker
+local add_marker_at = common.add_marker_at
 local config = common.config
 local auto_import_latest_video = common.auto_import_latest_video
 
@@ -72,7 +73,7 @@ local function start_recording()
       reaper.ShowMessageBox(
         "Could not connect to OBS Studio.\n\n" ..
         "Make sure OBS is running and the WebSocket server is enabled:\n" ..
-        "OBS  Tools  WebSocket Server Settings  Enable\n\n" ..
+        "OBS → Tools → WebSocket Server Settings → Enable\n\n" ..
         "WebSocket URL: " .. config.OBS_WEBSOCKET_URL .. "\n\n" ..
         "obs-cmd output:\n" .. conn_out,
         "ReapOBS: OBS Connection Failed",
@@ -80,14 +81,14 @@ local function start_recording()
       )
       return
     else
-      log("WARNING: OBS connection failed but REQUIRE_OBS is false  continuing anyway.")
+      log("WARNING: OBS connection failed but REQUIRE_OBS is false – continuing anyway.")
     end
   end
 
   local obs_ok, obs_out = obs_cmd("recording start")
   if not obs_ok then
     if obs_out:lower():find("already") then
-      log("OBS is already recording  treating as success.")
+      log("OBS is already recording – treating as success.")
     elseif config.REQUIRE_OBS then
       reaper.ShowMessageBox(
         "Failed to start OBS recording.\n\n" ..
@@ -97,7 +98,7 @@ local function start_recording()
       )
       return
     else
-      log("WARNING: Failed to start OBS recording but REQUIRE_OBS is false  starting REAPER anyway.")
+      log("WARNING: Failed to start OBS recording but REQUIRE_OBS is false – starting REAPER anyway.")
     end
   end
 
@@ -123,14 +124,18 @@ local function stop_recording()
 
   log("ReapOBS: Stopping synchronized recording...")
 
+  -- Capture the stop position before stopping, because
+  -- GetPlayPosition() returns 0 once the transport is no longer recording
+  local stop_pos = reaper.GetPlayPosition()
+
   -- Stop REAPER recording first (use constant from config)
   reaper.Main_OnCommand(config.REAPER_ACTION_STOP, 0)
 
   if config.ADD_MARKER_ON_STOP then
-    add_marker(config.STOP_MARKER_PREFIX)
+    add_marker_at(config.STOP_MARKER_PREFIX, stop_pos)
   end
 
-  -- Stop OBS recording  alert the user if this fails
+  -- Stop OBS recording – alert the user if this fails
   local cmd_ok, cmd_err = check_obs_cmd_exists()
   if not cmd_ok then
     log("WARNING: " .. (cmd_err or "obs-cmd not available"))

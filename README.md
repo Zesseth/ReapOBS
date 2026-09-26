@@ -32,7 +32,7 @@ Lua ReaScript that synchronizes REAPER DAW and OBS Studio recording with a singl
 
 ReapOBS synchronizes audio recording in REAPER DAW with video recording in OBS Studio. Press a single key or toolbar button in REAPER and both applications start recording simultaneously. Press it again to stop both at once.
 
-Without ReapOBS, starting and stopping two separate applications manually is error-prone. A slightly delayed start or stop creates an audio/video offset that must be corrected in post-production  or worse, causes you to miss the beginning of a take. ReapOBS eliminates this by coordinating both applications from a single REAPER action.
+Without ReapOBS, starting and stopping two separate applications manually is error-prone. A slightly delayed start or stop creates an audio/video offset that must be corrected in post-production — or worse, causes you to miss the beginning of a take. ReapOBS eliminates this by coordinating both applications from a single REAPER action.
 
 The integration uses three independent Lua ReaScripts: one to start, one to stop, and one toggle script that is recommended for everyday use. Each script checks the current recording state, starts or stops the relevant application, and optionally drops a project marker in REAPER's timeline for reference during editing.
 
@@ -57,22 +57,22 @@ ReapOBS was created as a lightweight, focused alternative that:
 
 ```
 REAPER (Lua ReaScript)
-  
-   reaper.Main_OnCommand(1013)  REAPER starts recording
-  
-   io.popen("obs-cmd recording start")
-       
-        WebSocket (localhost:4455)
-            
-             OBS Studio starts recording
+  │
+  ├─ reaper.Main_OnCommand(1013) → REAPER starts recording
+  │
+  └─ io.popen("obs-cmd recording start")
+       │
+       └─ WebSocket (localhost:4455)
+            │
+            └─ OBS Studio starts recording
 ```
 
 **Components:**
 
-- **Lua ReaScript**  REAPER's built-in scripting environment exposes `io.popen()` and `os.execute()` for shell access. The scripts use `io.popen()` so they can read the output of obs-cmd and check whether the command succeeded.
-- **obs-cmd**  A standalone CLI tool written in Rust. It sends commands to OBS Studio over the WebSocket v5 protocol. Because it is a compiled binary, it has no runtime dependencies and executes in under 50 ms.
-- **OBS Studio WebSocket v5**  OBS Studio 28+ includes obs-websocket v5 as a built-in feature. No additional plugin is required. You simply enable the WebSocket server in OBS settings.
-- **Non-blocking execution**  `io.popen()` briefly pauses REAPER's UI thread while obs-cmd runs. Since obs-cmd completes in under 50 ms, this is imperceptible in practice.
+- **Lua ReaScript** – REAPER's built-in scripting environment exposes `io.popen()` and `os.execute()` for shell access. The scripts use `io.popen()` so they can read the output of obs-cmd and check whether the command succeeded.
+- **obs-cmd** – A standalone CLI tool written in Rust. It sends commands to OBS Studio over the WebSocket v5 protocol. Because it is a compiled binary, it has no runtime dependencies and executes in under 50 ms.
+- **OBS Studio WebSocket v5** – OBS Studio 28+ includes obs-websocket v5 as a built-in feature. No additional plugin is required. You simply enable the WebSocket server in OBS settings.
+- **Non-blocking execution** – `io.popen()` briefly pauses REAPER's UI thread while obs-cmd runs. Since obs-cmd completes in under 50 ms, this is imperceptible in practice.
 
 ---
 
@@ -108,7 +108,7 @@ The installer will:
 
 ### Method 2: Manual
 
-**Step 1  Install obs-cmd:**
+**Step 1 – Install obs-cmd:**
 
 ```bash
 curl -fsSL https://github.com/grigio/obs-cmd/releases/latest/download/obs-cmd-x64-linux.tar.gz \
@@ -118,18 +118,18 @@ sudo chmod +x /usr/local/bin/obs-cmd
 obs-cmd --version
 ```
 
-**Step 2  Copy the scripts:**
+**Step 2 – Copy the scripts:**
 
 ```bash
 mkdir -p ~/.config/REAPER/Scripts/ReapOBS
 cp scripts/*.lua ~/.config/REAPER/Scripts/ReapOBS/
 ```
 
-**Step 3  Load scripts in REAPER:**
+**Step 3 – Load scripts in REAPER:**
 
 1. Open REAPER
-2. Go to **Actions  Show Action List**
-3. Click **New action...**  **Load ReaScript...**
+2. Go to **Actions → Show Action List**
+3. Click **New action...** → **Load ReaScript...**
 4. Navigate to `~/.config/REAPER/Scripts/ReapOBS/`
 5. Select and load all the `.lua` files
 6. Assign keyboard shortcuts as desired (see [Usage](#usage))
@@ -139,7 +139,7 @@ cp scripts/*.lua ~/.config/REAPER/Scripts/ReapOBS/
 ## OBS Setup
 
 1. Open **OBS Studio**
-2. Go to **Tools  WebSocket Server Settings**
+2. Go to **Tools → WebSocket Server Settings**
 3. Check **Enable WebSocket Server**
 4. Note the port number (default: **4455**)
 5. Either set a password and add it to `OBS_WEBSOCKET_URL` in the scripts, or uncheck **Enable Authentication** for a passwordless connection
@@ -202,15 +202,15 @@ VIDEO_EXTENSIONS = {".mp4"}
 
 Four scripts are provided. Load all scripts in REAPER's Action List (see [Installation](#installation)) and assign shortcuts as desired.
 
-### 1. Toggle Recording  `reapobs_toggle_recording.lua` *(recommended)*
+### 1. Toggle Recording – `reapobs_toggle_recording.lua` *(recommended)*
 
 Checks whether REAPER is currently recording:
-- **Not recording**  starts both REAPER and OBS
-- **Recording**  stops both REAPER and OBS
+- **Not recording** → starts both REAPER and OBS
+- **Recording** → stops both REAPER and OBS
 
 This is the script to assign to a keyboard shortcut. **Recommended shortcut: `Shift+R`**
 
-### 2. Start Recording  `reapobs_start_recording.lua`
+### 2. Start Recording – `reapobs_start_recording.lua`
 
 - Verifies obs-cmd is installed and OBS is reachable
 - If auto-import is enabled, verifies `OBS_OUTPUT_DIR` before starting
@@ -218,7 +218,7 @@ This is the script to assign to a keyboard shortcut. **Recommended shortcut: `Sh
 - Starts REAPER recording via Transport: Record (action 1013)
 - Optionally adds a `REC START` marker to the REAPER timeline
 
-### 3. Stop Recording  `reapobs_stop_recording.lua`
+### 3. Stop Recording – `reapobs_stop_recording.lua`
 
 - Stops REAPER recording via Transport: Stop (action 1016)
 - Optionally adds a `REC STOP` marker to the REAPER timeline
@@ -229,7 +229,7 @@ This is the script to assign to a keyboard shortcut. **Recommended shortcut: `Sh
 
 You can add a toolbar button in REAPER so you don't need to remember a keyboard shortcut:
 
-1. Go to **Actions  Show Action List**
+1. Go to **Actions → Show Action List**
 2. Find the ReapOBS script you want (e.g., `Script: reapobs_toggle_recording.lua`)
 3. Right-click the action and select **Copy selected action command ID**
 4. Close the Action List
@@ -239,11 +239,11 @@ You can add a toolbar button in REAPER so you don't need to remember a keyboard 
 8. Filter for **"reapobs"** and select the ReapOBS icon
 9. Click **OK** to save
 
-Alternatively, you can create a completely new toolbar: **View  Toolbars  New toolbar...** and add the ReapOBS actions there.
+Alternatively, you can create a completely new toolbar: **View → Toolbars → New toolbar...** and add the ReapOBS actions there.
 
 ReapOBS includes a toolbar icon (`reapobs_toggle.png`) installed automatically by `install.sh` to `~/.config/REAPER/Data/toolbar_icons/`.
 
-> **Tip:** REAPER can highlight the toolbar button when recording is active. Right-click the toolbar  **Customize toolbar...**, select the ReapOBS action, and check **Show button as enabled for toggleable actions**. This highlight is provided by REAPER; ReapOBS installs the single `reapobs_toggle.png` icon.
+> **Tip:** REAPER can highlight the toolbar button when recording is active. Right-click the toolbar → **Customize toolbar...**, select the ReapOBS action, and check **Show button as enabled for toggleable actions**. This highlight is provided by REAPER; ReapOBS installs the single `reapobs_toggle.png` icon.
 
 ---
 
@@ -298,7 +298,7 @@ For multi-machine setups where OBS runs on a different computer:
 2. **Open REAPER** and set up your audio project (tracks, inputs, monitoring levels)
 3. **Arm the desired tracks** in REAPER for recording (click the red arm button on each track)
 4. **Press your assigned shortcut** (e.g., `Shift+R`) to start both applications recording simultaneously
-5. **Perform your recording**  audio in REAPER, video in OBS
+5. **Perform your recording** — audio in REAPER, video in OBS
 6. **Press the same shortcut** to stop both
 7. If auto-import is enabled, the latest video file is imported under the `Videos` folder track and aligned to `REC START`
 8. Audio is recorded to your REAPER media path. Video remains in OBS output by default; use **Save As -> Copy all media into project directory** when finalizing
@@ -321,11 +321,11 @@ For multi-machine setups where OBS runs on a different computer:
 | Problem | Solution |
 |---------|----------|
 | `obs-cmd: command not found` | Check `OBS_CMD_PATH` in `reapobs_config.lua`. Run `which obs-cmd` in a terminal to find the actual path. |
-| `Connection refused` | Make sure OBS is running and the WebSocket Server is enabled: **OBS  Tools  WebSocket Server Settings  Enable**. |
+| `Connection refused` | Make sure OBS is running and the WebSocket Server is enabled: **OBS → Tools → WebSocket Server Settings → Enable**. |
 | `Authentication failed` | Verify the password in `OBS_WEBSOCKET_URL` matches what is set in OBS WebSocket Server Settings. |
 | REAPER records but OBS doesn't | Check the REAPER console for error output. Test obs-cmd manually: `obs-cmd --websocket obsws://localhost:4455 recording start`. |
 | OBS records but REAPER doesn't | Verify that at least one track in REAPER is armed for recording. |
-| Scripts don't appear in Actions | Re-load them: **Actions  Show Action List  New action...  Load ReaScript...**. |
+| Scripts don't appear in Actions | Re-load them: **Actions → Show Action List → New action... → Load ReaScript...**. |
 | `Permission denied` on obs-cmd | Run `chmod +x /usr/local/bin/obs-cmd`. |
 | Significant audio/video sync offset | Use a clap or click reference at the start and adjust in post. You can also try setting `REQUIRE_OBS = false` and experimenting with the order of operations. |
 | Auto-import not working | Ensure `AUTO_IMPORT_VIDEO = true` and `OBS_OUTPUT_DIR` is correctly set in `reapobs_config.lua`. |
@@ -378,9 +378,9 @@ sudo rm /usr/local/bin/obs-cmd
 ```
 
 Also remove the actions from REAPER's Action List:
-1. Open **Actions  Show Action List**
+1. Open **Actions → Show Action List**
 2. Select each ReapOBS action
-3. Click **Delete action** (or simply leave them  they won't do anything without the scripts present)
+3. Click **Delete action** (or simply leave them — they won't do anything without the scripts present)
 
 ---
 
@@ -398,7 +398,7 @@ Contributions are welcome! Please open an issue or pull request on GitHub.
 
 ## License
 
-GNU General Public License v2.0  see [LICENSE](LICENSE) for the full text.
+GNU General Public License v2.0 — see [LICENSE](LICENSE) for the full text.
 
 > This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -406,8 +406,8 @@ GNU General Public License v2.0  see [LICENSE](LICENSE) for the full text.
 
 ## Acknowledgments
 
-- [leafac/reaper](https://github.com/leafac/reaper) by Leandro Facchinetti  the original inspiration for REAPER + OBS recording synchronization
+- [leafac/reaper](https://github.com/leafac/reaper) by Leandro Facchinetti — the original inspiration for REAPER + OBS recording synchronization
 - [REAPER](https://www.reaper.fm/) by Cockos Incorporated
 - [OBS Studio](https://obsproject.com/) by the OBS Project
-- [obs-cmd](https://github.com/grigio/obs-cmd) by grigio  the CLI tool that makes this integration possible
+- [obs-cmd](https://github.com/grigio/obs-cmd) by grigio — the CLI tool that makes this integration possible
 - The REAPER ReaScript community for documentation and examples
