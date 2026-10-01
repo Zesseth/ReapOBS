@@ -1,5 +1,5 @@
 -- ============================================================
--- ReapOBS  Start Recording
+-- ReapOBS – Start Recording
 -- Starts both REAPER and OBS Studio recording simultaneously
 -- https://github.com/Zesseth/ReapOBS
 -- License: GNU GPL v2.0
@@ -64,7 +64,7 @@ local function start_recording()
       reaper.ShowMessageBox(
         "Could not connect to OBS Studio.\n\n" ..
         "Make sure OBS is running and the WebSocket server is enabled:\n" ..
-        "OBS  Tools  WebSocket Server Settings  Enable\n\n" ..
+        "OBS → Tools → WebSocket Server Settings → Enable\n\n" ..
         "WebSocket URL: " .. config.OBS_WEBSOCKET_URL .. "\n\n" ..
         "obs-cmd output:\n" .. conn_out,
         "ReapOBS: OBS Connection Failed",
@@ -72,16 +72,16 @@ local function start_recording()
       )
       return
     else
-      log("WARNING: OBS connection failed but REQUIRE_OBS is false  continuing anyway.")
+      log("WARNING: OBS connection failed but REQUIRE_OBS is false – continuing anyway.")
     end
   end
 
   -- Start OBS recording
   local obs_ok, obs_out = obs_cmd("recording start")
   if not obs_ok then
-    -- obs-cmd returns non-zero if OBS is already recording  handle gracefully
+    -- obs-cmd returns non-zero if OBS is already recording – handle gracefully
     if obs_out:lower():find("already") then
-      log("OBS is already recording  treating as success.")
+      log("OBS is already recording – treating as success.")
     elseif config.REQUIRE_OBS then
       reaper.ShowMessageBox(
         "Failed to start OBS recording.\n\n" ..
@@ -91,7 +91,7 @@ local function start_recording()
       )
       return
     else
-      log("WARNING: Failed to start OBS recording but REQUIRE_OBS is false  starting REAPER anyway.")
+      log("WARNING: Failed to start OBS recording but REQUIRE_OBS is false – starting REAPER anyway.")
     end
   end
 
