@@ -144,7 +144,7 @@ local function validate_config()
   end
 
   -- Validate RECENT_VIDEO_MINUTES
-  if type(RECENT_VIDEO_MINUTES) ~= "number" or RECENT_VIDEO_MINUTES < 0 then
+  if type(RECENT_VIDEO_MINUTES) ~= "number" or RECENT_VIDEO_MINUTES <= 0 then
     error("Configuration error: RECENT_VIDEO_MINUTES must be a positive number")
   end
 
