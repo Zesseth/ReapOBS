@@ -9,3 +9,6 @@ CLAUDE.md
 
 # macOS
 .DS_Store
+
+# Local test screenshots (never commit these to the remote)
+Screenshot_*.png
