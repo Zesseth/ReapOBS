@@ -15,6 +15,14 @@ MAJOR = 1):
 | MINOR    | The release adds at least one new feature; PATCH resets to 0 | `v1.1.0` |
 | MAJOR    | Breaking changes or a major rework — no schedule, decided case by case by the maintainer | `v2.0.0` |
 
+The version number counts **releases, not individual changes**: a segment
+bumps by exactly one per published release, no matter how many fixes or
+features the release contains. Unrelated fixes shipped together in one
+release (e.g. two bug fixes) still result in a single PATCH bump — the
+individual changes are listed in the release notes instead. Gaps in the
+numbering never occur; `v1.0.2` simply means "the second bug-fix release
+after `v1.0.0`", not "the second fix".
+
 ## Process
 
 - `main` is the only development branch and the only source of releases.
