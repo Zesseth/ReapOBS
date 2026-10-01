@@ -21,6 +21,10 @@ info() { echo -e "${YELLOW}[INFO]${NC} $*"; }
 
 FAILED=0
 
+# Always run from the repository root, so the script works when
+# invoked from any directory or with an absolute path
+cd "$(dirname "$0")" || exit 1
+
 # ------------------------------------------------------------
 # 1. Find a suitable Lua interpreter
 # ------------------------------------------------------------
