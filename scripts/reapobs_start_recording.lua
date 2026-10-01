@@ -17,6 +17,12 @@ local check_obs_output_dir = common.check_obs_output_dir
 local add_marker = common.add_marker
 local config = common.config
 
+local Countdown = dofile(reaper.GetResourcePath() .. "/Scripts/ReapOBS/reapobs_countdown.lua")
+
+-- Forward declaration: defined below start_recording, called from
+-- the countdown callback when the countdown reaches zero
+local do_start_recording
+
 -- =================== USER CONFIGURATION ====================
 -- Configuration is now centralized in reapobs_config.lua
 -- You can override specific settings here if needed
@@ -76,6 +82,22 @@ local function start_recording()
     end
   end
 
+  -- Countdown (configurable; runs after all checks passed).
+  -- COUNTDOWN_SECONDS = 0 starts recording immediately (no regression).
+  Countdown.run{
+    seconds = config.COUNTDOWN_SECONDS,
+    font_size = config.COUNTDOWN_FONT_SIZE,
+    auto_close = config.COUNTDOWN_AUTO_CLOSE,
+    log = log,
+    on_start = function() do_start_recording() end,
+  }
+end
+
+-- ------------------------------------------------------------
+-- Actual start: OBS and REAPER recording begin here
+-- (called when the countdown reaches zero)
+-- ------------------------------------------------------------
+do_start_recording = function()
   -- Start OBS recording
   local obs_ok, obs_out = obs_cmd("recording start")
   if not obs_ok then
