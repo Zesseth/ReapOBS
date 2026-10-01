@@ -393,6 +393,7 @@ Contributions are welcome! Please open an issue or pull request on GitHub.
 - For code changes, please follow the existing Lua style (2-space indentation, descriptive variable names, error handling with `pcall`)
 - All user-configurable options should have comprehensive validation with clear error messages
 - Use the shared library system (`reapobs_common.lua`) for new functionality to avoid code duplication
+- Versioning and release process: see [RELEASES.md](RELEASES.md)
 
 ---
 
