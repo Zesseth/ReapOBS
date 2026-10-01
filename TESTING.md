@@ -26,20 +26,29 @@ REAPER project or OBS.
 
 ## 2. Update the installed scripts
 
-The scripts run from `~/.config/REAPER/Scripts/ReapOBS/`; the repo copies
-must be deployed there before live testing:
+`~/.config/REAPER/Scripts/ReapOBS` is a symlink to this repo's `scripts/`
+directory, so REAPER always loads the current working copy — a plain
+`git pull` (or branch checkout) is enough, no file copying needed:
 
 ```bash
-cp /mnt/data/Repos/ReapOBS/scripts/*.lua ~/.config/REAPER/Scripts/ReapOBS/
+ls -la ~/.config/REAPER/Scripts/ReapOBS
+# ReapOBS -> /mnt/data/Repos/ReapOBS/scripts
 ```
 
-(Or run `./install.sh` and answer `y` to the overwrite prompts — it will
-also offer to install obs-cmd and the toolbar icon.)
+If the symlink is missing, recreate it:
 
-Backups of the previous installed versions live next to the directory as
-`ReapOBS.backup-*`. REAPER action IDs and the `Shift+R` shortcut are bound to
-the file paths, so they keep working after the update — no action reload
-needed.
+```bash
+ln -s /mnt/data/Repos/ReapOBS/scripts ~/.config/REAPER/Scripts/ReapOBS
+```
+
+(Remove any regular directory with that name first. `./install.sh` copies
+files instead of using the symlink — do not run it on a symlinked setup
+unless you want a copy-based installation again.)
+
+REAPER action IDs and the `Shift+R` shortcut are bound to the script paths,
+which resolve through the symlink, so they keep working across branch
+switches. Previous copy-based versions are preserved as
+`ReapOBS.backup-*` / `ReapOBS.copied-*` directories.
 
 ## 3. Prerequisites for a live test
 
@@ -79,19 +88,21 @@ obs-cmd --websocket obsws://localhost:4455 info
 - **Use**: `reapobs_toggle_recording.lua` bound to `Shift+R` (and/or the
   toolbar button) starts/stops REAPER and OBS together. The separate
   start/stop scripts exist for one-way actions. All options live in
-  `~/.config/REAPER/Scripts/ReapOBS/reapobs_config.lua`.
-- **Update**: `git pull` the repo, then re-copy the scripts as in step 2.
-  Keep an eye on config changes: copy `reapobs_config.lua` only if you
-  accept new defaults.
+  `reapobs_config.lua` in this repo (loaded through the symlink).
+- **Update**: `git pull` in the repo — the symlink makes the new scripts
+  live immediately. Keep an eye on config changes: a pulled
+  `reapobs_config.lua` replaces your local settings since it is the same
+  file.
 - **Debug**: set `DEBUG = true` in `reapobs_config.lua` to log every
   obs-cmd call and auto-import step to the REAPER console
   (View → Console).
 
 ## Rollback
 
-```bash
-cp ~/.config/REAPER/Scripts/ReapOBS.backup-*/.lua \
-   ~/.config/REAPER/Scripts/ReapOBS/
-```
+Restore the last copy-based installation:
 
-(after a backup from step 2 exists).
+```bash
+rm ~/.config/REAPER/Scripts/ReapOBS   # removes the symlink only
+mv ~/.config/REAPER/Scripts/ReapOBS.copied-20261001 \
+   ~/.config/REAPER/Scripts/ReapOBS
+```
