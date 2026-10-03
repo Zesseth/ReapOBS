@@ -190,6 +190,7 @@ fi
 # List of all Lua scripts to install
 SCRIPTS=(
   reapobs_config.lua
+  reapobs_countdown.lua
   reapobs_common.lua
   reapobs_start_recording.lua
   reapobs_stop_recording.lua

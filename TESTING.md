@@ -17,10 +17,20 @@ Requires standalone Lua 5.3/5.4 (`sudo apt install lua5.3`):
 
 ```bash
 cd /mnt/data/Repos/ReapOBS
+./run_tests.sh
+```
+
+`run_tests.sh` checks the Lua interpreter, runs a syntax check
+(`luac -p`) on every script and test file, and then runs the full
+regression suite. It is the single command to run before committing.
+
+The same suite can be run directly:
+
+```bash
 lua5.3 tests/test_bug_regressions.lua
 ```
 
-All 5 tests must print `PASS`. The tests use a mock REAPER API and stub
+All 8 tests must print `PASS`. The tests use a mock REAPER API and stub
 `obs-cmd`/`ffmpeg` binaries in a sandbox — they never touch your real
 REAPER project or OBS.
 

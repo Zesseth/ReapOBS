@@ -24,6 +24,11 @@ function MockReaper.new(opts)
   self.resource_path = opts.resource_path or "/tmp/reapobs-test"
   self.action_context = opts.action_context or {0, 0, 32060, 57000}
   self.fail_insert_media = opts.fail_insert_media or false
+  self.defer_queue = {}
+  self._now = 1000.0
+  self.gfx_drawn = {}
+  self.gfx_keys = {}
+  self.gfx_quit = false
   return self
 end
 
@@ -156,7 +161,57 @@ function MockReaper:api()
       local c = mock.action_context
       return c[1], c[2], c[3], c[4]
     end,
-    time_precise = function() return os.clock() end,
+    time_precise = function() return mock:now() end,
+    defer = function(fn) mock.defer_queue[#mock.defer_queue + 1] = fn end,
+  }
+end
+
+-- --------------------------------------------------------------
+-- Controllable clock for countdown tests
+-- ------------------------------------------------------------
+function MockReaper:now()
+  return self._now or os.clock()
+end
+
+function MockReaper:advance(seconds)
+  self._now = self:now() + seconds
+end
+
+-- Run queued defer callbacks (max_steps iterations)
+function MockReaper:run_deferred(max_steps)
+  local steps = max_steps or 1000
+  while #self.defer_queue > 0 and steps > 0 do
+    local fn = table.remove(self.defer_queue, 1)
+    fn()
+    steps = steps - 1
+  end
+end
+
+-- --------------------------------------------------------------
+-- Mock gfx API: records drawn strings and window lifecycle
+-- ------------------------------------------------------------
+function MockReaper:gfx_api()
+  local mock = self
+  return {
+    init = function(title, w, h, flags)
+      mock.gfx_state = {title = title, w = w, h = h, open = true, quit = false}
+    end,
+    setfont = function(idx, size, face) mock.gfx_font_size = size end,
+    set = function(r, g, b) mock.gfx_color = {r, g, b} end,
+    measurestr = function(text) return #tostring(text) * 10, 50 end,
+    drawstr = function(text)
+      mock.gfx_drawn[#mock.gfx_drawn + 1] = tostring(text)
+    end,
+    getchar = function()
+      local k = mock.gfx_keys
+      if k and #k > 0 then return table.remove(k, 1) end
+      return 0
+    end,
+    quit = function()
+      if mock.gfx_state then mock.gfx_state.open = false end
+      mock.gfx_quit = true
+    end,
+    w = 400, h = 300, x = 0, y = 0,
   }
 end
 

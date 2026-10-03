@@ -165,6 +165,16 @@ Configuration is now centralized in `reapobs_config.lua`. Open this file in a te
 | `REQUIRE_OBS` | `true` | When `true`, REAPER recording will not start if OBS is unavailable. Set to `false` to record REAPER audio even without OBS. |
 | `DEBUG` | `false` | Print status messages to the REAPER console. Enable for troubleshooting. Error dialogs (e.g., connection failures) always appear regardless of this setting. |
 
+### Countdown Configuration Options
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `COUNTDOWN_SECONDS` | `5` | Seconds to wait before recording starts, shown in a countdown window. Set to `0` to start recording immediately (no countdown window). |
+| `COUNTDOWN_FONT_SIZE` | `120` | Font size of the large countdown number. |
+| `COUNTDOWN_AUTO_CLOSE` | `2` | Seconds to show the red REC indicator after recording starts before the window closes. |
+
+The countdown window opens after all checks (obs-cmd, output directory, OBS connection) have passed, so failures are reported before the countdown begins. Press `ESC` during the countdown to abort without starting recording.
+
 ### Auto-Import Configuration Options
 
 | Variable | Default | Description |

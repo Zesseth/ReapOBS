@@ -58,6 +58,8 @@ local function make_sandbox()
   cfg = cfg:gsub('FFMPEG_PATH = "[^"]*"', 'FFMPEG_PATH = "' .. base .. '/bin/ffmpeg"')
   cfg = cfg:gsub('OBS_OUTPUT_DIR = "[^"]*"', 'OBS_OUTPUT_DIR = "' .. base .. '/VideoRecording"')
   cfg = cfg:gsub('DEBUG = false', 'DEBUG = true')
+  -- Tests that assert immediate start run with the countdown disabled
+  cfg = cfg:gsub('COUNTDOWN_SECONDS = 5', 'COUNTDOWN_SECONDS = 0')
   local f2 = assert(io.open(cfg_path, "w"))
   f2:write(cfg)
   f2:close()
@@ -108,6 +110,7 @@ local function test_no_control_chars()
     "scripts/reapobs_start_recording.lua",
     "scripts/reapobs_stop_recording.lua",
     "scripts/reapobs_toggle_recording.lua",
+    "scripts/reapobs_countdown.lua",
     "install.sh",
     "README.md",
   }
@@ -206,6 +209,87 @@ local function test_start_guard_obs_required()
   assert(#mock.msgbox_log > 0, "a dialog should inform the user about the failure")
 end
 
+-- ------------------------------------------------------------
+-- Issue #3: configurable countdown before recording starts
+-- ------------------------------------------------------------
+local function make_countdown_sandbox()
+  local base = make_sandbox()
+  make_stub_bin(base .. "/bin", "obs-cmd", "#!/bin/sh\nexit 0\n")
+  make_stub_bin(base .. "/bin", "ffmpeg", "#!/bin/sh\nexit 0\n")
+  -- COUNTDOWN_SECONDS = 0: current behavior, start immediately
+  local cfg_path = base .. "/Scripts/ReapOBS/reapobs_config.lua"
+  local f = assert(io.open(cfg_path, "r"))
+  local cfg = f:read("*a")
+  f:close()
+  cfg = cfg:gsub("COUNTDOWN_SECONDS = 5", "COUNTDOWN_SECONDS = 0")
+  local f2 = assert(io.open(cfg_path, "w"))
+  f2:write(cfg)
+  f2:close()
+  return base
+end
+
+local function test_countdown_zero_starts_immediately()
+  local base = make_countdown_sandbox()
+  local mock = MockReaper.new{resource_path = base}
+  mock.gfx_keys = {}
+  -- Replace global gfx with the mock so the countdown module uses it
+  gfx = mock:gfx_api()
+  load_script(base, mock, "reapobs_start_recording.lua")
+  assert(mock.playstate == 5, "COUNTDOWN_SECONDS = 0 must start recording immediately")
+  assert(#mock.defer_queue == 0, "no deferred loop should be queued")
+end
+
+local function make_countdown_sandbox_5()
+  local base = make_countdown_sandbox()
+  local cfg_path = base .. "/Scripts/ReapOBS/reapobs_config.lua"
+  local f = assert(io.open(cfg_path, "r"))
+  local cfg = f:read("*a")
+  f:close()
+  cfg = cfg:gsub("COUNTDOWN_SECONDS = 0", "COUNTDOWN_SECONDS = 5")
+  local f2 = assert(io.open(cfg_path, "w"))
+  f2:write(cfg)
+  f2:close()
+  return base
+end
+
+local function test_countdown_starts_after_delay()
+  local base = make_countdown_sandbox_5()
+  local mock = MockReaper.new{resource_path = base}
+  gfx = mock:gfx_api()
+  load_script(base, mock, "reapobs_start_recording.lua")
+  assert(mock.playstate ~= 5, "recording must not start before the countdown finishes")
+  assert(mock.gfx_state and mock.gfx_state.open == true, "countdown window should be open")
+  -- Countdown not finished yet: numbers drawn, no recording
+  mock:run_deferred(5)
+  assert(mock.playstate ~= 5, "recording must not start mid-countdown")
+  -- Countdown finished: recording starts and REC is shown
+  mock:advance(6)
+  mock:run_deferred(20)
+  assert(mock.playstate == 5, "recording must start after the countdown finishes")
+  local drew_rec = false
+  for _, s in ipairs(mock.gfx_drawn) do
+    if s:find("REC") then drew_rec = true end
+  end
+  assert(drew_rec, "REC indicator must be drawn when recording starts")
+  -- Auto-close after COUNTDOWN_AUTO_CLOSE seconds
+  mock:advance(3)
+  mock:run_deferred(10)
+  assert(mock.gfx_quit, "countdown window must auto-close after recording starts")
+end
+
+local function test_countdown_esc_aborts()
+  local base = make_countdown_sandbox_5()
+  local mock = MockReaper.new{resource_path = base}
+  gfx = mock:gfx_api()
+  load_script(base, mock, "reapobs_start_recording.lua")
+  assert(mock.playstate ~= 5, "recording must not start before the countdown finishes")
+  -- Press ESC during the countdown
+  mock.gfx_keys = {27}
+  mock:run_deferred(3)
+  assert(mock.playstate ~= 5, "ESC must abort without starting recording")
+  assert(mock.gfx_quit, "countdown window must close on ESC")
+end
+
 print("============================================================")
 print("ReapOBS bug regression tests")
 print("============================================================")
@@ -214,6 +298,9 @@ run_test("Issue #11: no raw control characters in files", test_no_control_chars)
 run_test("Full chain smoke: start → stop → auto-import", test_full_chain_smoke)
 run_test("Toolbar toggle state follows recording state", test_toggle_state_tracking)
 run_test("Start guard: OBS required, no recording on failure", test_start_guard_obs_required)
+run_test("Issue #3: COUNTDOWN_SECONDS = 0 starts immediately", test_countdown_zero_starts_immediately)
+run_test("Issue #3: countdown starts recording after delay, shows REC, auto-closes", test_countdown_starts_after_delay)
+run_test("Issue #3: ESC aborts countdown without recording", test_countdown_esc_aborts)
 
 print("------------------------------------------------------------")
 print(string.format("Total: %d  Passed: %d  Failed: %d", passed + failed, passed, failed))

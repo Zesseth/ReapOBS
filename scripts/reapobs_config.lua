@@ -63,6 +63,17 @@ VIDEOS_BUS_NAME = "Videos"
 -- REAPER action IDs (constants for maintainability)
 REAPER_ACTION_RECORD = 1013
 REAPER_ACTION_STOP = 1016
+
+-- =================== COUNTDOWN CONFIGURATION ====================
+
+-- Seconds to wait before recording starts (0 = start immediately)
+COUNTDOWN_SECONDS = 5
+
+-- Font size for the large countdown number
+COUNTDOWN_FONT_SIZE = 120
+
+-- Seconds to show the REC indicator after recording starts before closing
+COUNTDOWN_AUTO_CLOSE = 2
 -- =================== END CONFIGURATION =====================
 
 -- ============================================================
@@ -163,6 +174,21 @@ local function validate_config()
   if type(VIDEOS_BUS_NAME) ~= "string" or VIDEOS_BUS_NAME == "" then
     error("Configuration error: VIDEOS_BUS_NAME must be a non-empty string")
   end
+
+  -- Validate COUNTDOWN_SECONDS
+  if type(COUNTDOWN_SECONDS) ~= "number" or COUNTDOWN_SECONDS < 0 or COUNTDOWN_SECONDS % 1 ~= 0 then
+    error("Configuration error: COUNTDOWN_SECONDS must be a non-negative integer")
+  end
+
+  -- Validate COUNTDOWN_FONT_SIZE
+  if type(COUNTDOWN_FONT_SIZE) ~= "number" or COUNTDOWN_FONT_SIZE < 8 then
+    error("Configuration error: COUNTDOWN_FONT_SIZE must be a number of at least 8")
+  end
+
+  -- Validate COUNTDOWN_AUTO_CLOSE
+  if type(COUNTDOWN_AUTO_CLOSE) ~= "number" or COUNTDOWN_AUTO_CLOSE < 0 then
+    error("Configuration error: COUNTDOWN_AUTO_CLOSE must be a non-negative number")
+  end
 end
 
 -- Run validation when this file is loaded
@@ -194,6 +220,9 @@ return {
   VIDEOS_BUS_NAME = VIDEOS_BUS_NAME,
   REAPER_ACTION_RECORD = REAPER_ACTION_RECORD,
   REAPER_ACTION_STOP = REAPER_ACTION_STOP,
+  COUNTDOWN_SECONDS = COUNTDOWN_SECONDS,
+  COUNTDOWN_FONT_SIZE = COUNTDOWN_FONT_SIZE,
+  COUNTDOWN_AUTO_CLOSE = COUNTDOWN_AUTO_CLOSE,
   
   -- Validation function
   validate_config = validate_config
