@@ -56,7 +56,9 @@ function Countdown.run(opts)
     local char = g.getchar()
     -- ESC (27) aborts; -1 means the window was closed
     if char == 27 or char == -1 then
-      log("Countdown aborted by user.")
+      if not started then
+        log("Countdown aborted by user.")
+      end
       g.quit()
       return
     end
